@@ -1,0 +1,65 @@
+id: 1
+name: "testWorkFlow"
+constants:
+  - key: "externalUrl"
+    value: "http://localhost:8083/wf/hotel"
+  - key: "query"
+    value: "select * from test"
+operations:
+  - id: 1
+    name: "call External Url"
+    path: "p:api"
+    inputs:
+      url: "${externalUrl}"
+      method: "GET"
+      queryParams:
+        hotelId: 1
+        another: "wc:another"
+      headers:
+        accept: "application/json"
+      payload: "{hotelId:2}"
+      params:
+        dbId: 1
+        query: "${query}"
+        scope: "wc:hotelId"
+    next: 1.5
+  - id: 1.5
+    name: "Extract body from response"
+    path: "p:rbec"
+    inputs:
+      response: "poc:result"
+    next: 2
+  - id: 2
+    name: "transform"
+    path: "com.testing.operations.testWfOperations.JsonTransformFilter.transform"
+    inputs:
+      sourceJson: "poc:result"
+    next: 2.5
+  - id: 2.5
+    name: "transform_2"
+    path: "com.testing.operations.testWfOperations.JsonTransformFilter.transform"
+    inputs:
+      sourceJson: "poc:transformed"
+    next: 3
+  - id: 3
+    name: "give result back"
+    path: "p:api"
+    inputs:
+      url: "http://localhost:8083/wf/hotel/put"
+      method: "POST"
+      queryParams:
+        hotelId: 3
+      headers:
+        accept: "application/json"
+      payload: "{hotelId:3}"
+      params:
+        dbId: 1
+        query: "select * from test2"
+    next: 4
+  - id: 4
+    name: "xmltojson"
+    path: "com.testing.operations.XmlOperations.XmlToJsonOperation.convert"
+    inputs:
+      xml: "abc"
+    next: -1
+

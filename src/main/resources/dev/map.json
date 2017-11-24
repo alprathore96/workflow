@@ -1,0 +1,4 @@
+[
+  { "op": "add", "path": "/name2", "value": {} },
+  { "op": "move", "from":"/mapping1", "path":"/name2/name" }
+]
