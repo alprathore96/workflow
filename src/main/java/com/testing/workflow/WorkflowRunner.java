@@ -52,7 +52,6 @@ public class WorkflowRunner {
             Optional<Operation> operationOptional = workflow.getOperation(workflowContext.getNextOperation());
             if (operationOptional.isPresent()) {
                 Operation operation = operationOptional.get();
-                operation.setWorkflowContext(workflowContext);
                 OperationContext operationContext = new OperationContext(operation);
                 workflowContext.getOperationContexts().add(operationContext);
                 String path = operation.getPath();
@@ -76,8 +75,7 @@ public class WorkflowRunner {
                     String classPath = path.substring(0, path.lastIndexOf('.'));
                     String methodName = path.substring(path.lastIndexOf('.') + 1);
                     Class clazz = cacheLibraryConfig.forName(classPath);
-                    Optional<Method> methodOptional = Arrays.stream(clazz.getDeclaredMethods()).filter(m -> m.getName()
-                            .equals(methodName)).findAny();
+                    Optional<Method> methodOptional = cacheLibraryConfig.methodFromClass(clazz, methodName);
                     if (methodOptional.isPresent()) {
                         method = methodOptional.get();
                         bean = getClassBean(clazz);
@@ -91,6 +89,7 @@ public class WorkflowRunner {
                         validateParameters(method, parameters);
                         Object result = method.invoke(bean, parameters);
                         operationContext.setAttribute("result", result);
+                        workflowContext.setNextOperation(operation.getNext());
                     } catch (Exception e) {
                         LOGGER.warn(String.format("Failed execution of operation %s for workflow %s during request " +
                                 "%s due to exception: ", operation.getId(), workflowContext.getWorkflow().getId()
@@ -100,9 +99,9 @@ public class WorkflowRunner {
                         if ( operation.getErrorNext() == null || operation.getErrorNext() == -1 ) {
                             throw new WorkflowExecutionException(e.getLocalizedMessage());
                         }
+                        workflowContext.setNextOperation(operation.getErrorNext());
                     }
                 }
-                workflowContext.setNextOperation(operation.getNext());
                 previousOperation = operation.getId();
             } else {
                 break;

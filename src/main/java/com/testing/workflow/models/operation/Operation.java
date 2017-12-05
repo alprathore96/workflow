@@ -1,7 +1,5 @@
 package com.testing.workflow.models.operation;
 
-import com.testing.workflow.context.WorkflowContext;
-
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -12,7 +10,6 @@ public class Operation {
     private double next;
     private Double errorNext;
     private Map<String, Object> inputs;
-    private WorkflowContext workflowContext;
 
     public Operation() {
         this.id = -1;
@@ -69,11 +66,4 @@ public class Operation {
         this.errorNext = errorNext;
     }
 
-    public WorkflowContext getWorkflowContext() {
-        return workflowContext;
-    }
-
-    public void setWorkflowContext(WorkflowContext workflowContext) {
-        this.workflowContext = workflowContext;
-    }
 }
