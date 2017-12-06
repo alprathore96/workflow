@@ -25,8 +25,9 @@ public class App {
             System.out.println(map);
 
             Map<String, Object> destinationMap = new HashMap<>();
-
-            mapping(map, destinationMap, "c.d[i].five", "b.x[i].five");
+            mapping(map, destinationMap, "b.two", "b.two");
+            mapping(map, destinationMap, "a", "b.two[i].a");
+            mapping(map, destinationMap, "c.d[i].six", "b.two[i].a[i]");
             System.out.println(destinationMap);
 
         } catch (IOException e) {
@@ -39,24 +40,48 @@ public class App {
         String toFirstToken = toTokens[0];
         if ( ! toFirstToken.contains("[i]") ) {
             if ( toTokens.length > 1 ) {
-                destinationMap.put(toFirstToken, new HashMap<>());
+                destinationMap.putIfAbsent(toFirstToken, new HashMap<>());
                 mapping(sourceMap, (Map<String, Object>) destinationMap.get(toFirstToken), from, to.substring(to.indexOf('.') + 1));
             } else {
-                destinationMap.put(toFirstToken, extractKeyFromMap(sourceMap, from));
+                destinationMap.putIfAbsent(toFirstToken, extractKeyFromMap(sourceMap, from));
             }
             
         } else {
-            destinationMap.put(toFirstToken, new ArrayList<>());
-            String sourceListKey = from.substring(0, from.indexOf("[i]"));
-            List<Object> sourceList = (List<Object>) extractKeyFromMap(sourceMap, sourceListKey);
-            for ( Object sourceObject : sourceList ) {
+            String toFinalFirstToken = toFirstToken.substring(0, toFirstToken.indexOf("[i]"));
+            destinationMap.putIfAbsent(toFinalFirstToken, new ArrayList<>());
+            if ( from.contains("[i]") ) {
+                String sourceListKey = from.substring(0, from.indexOf("[i]"));
+                List<Object> sourceList = (List<Object>) extractKeyFromMap(sourceMap, sourceListKey);
+                for (Object sourceObject : sourceList) {
+                    if (toTokens.length > 1) {
+                        if ( ! toTokens[1].contains("[i]")) {
+                            Map<String, Object> singleDestinationEntry = new HashMap<>();
+                            mapping((Map<String, Object>) sourceObject, singleDestinationEntry, from.substring(from.indexOf("[i]") + 4)
+                                    , to.substring(to.indexOf("[i]") + 4));
+                            ((List) destinationMap.get(toFinalFirstToken)).add(singleDestinationEntry);
+                        } else {
+                            
+                        }
+                    } else {
+                        ((List) destinationMap.get(toFinalFirstToken)).add(sourceObject);
+                    }
+                }
+            } else {
+                List destinationObjects = (List) destinationMap.get(toFinalFirstToken);
                 if ( toTokens.length > 1 ) {
-                    Map<String, Object> singleDestinationEntry = new HashMap<>();
-                    mapping((Map<String, Object>) sourceObject, singleDestinationEntry, from.substring(from.indexOf("[i]") + 4)
-                            , to.substring(to.indexOf("[i]") + 4));
-                    ((List)destinationMap.get(toFirstToken)).add(singleDestinationEntry);
+                    for ( Object object : destinationObjects ) {
+                        Map<String, Object> singleDestinationEntry = new HashMap<>();
+                        if ( object instanceof Map ) {
+                            singleDestinationEntry = (Map<String, Object>) object;
+                        }
+                        mapping(sourceMap, singleDestinationEntry, from, to.substring(to.indexOf("[i]") + 4));
+                    }
+
                 } else {
-                    ((List)destinationMap.get(toFirstToken)).add(sourceObject);
+                    int size = destinationObjects.size();
+                    for ( int i = 0; i < size; i++ ) {
+                        destinationObjects.set(i, extractKeyFromMap(sourceMap, from));
+                    }
                 }
             }
         }
