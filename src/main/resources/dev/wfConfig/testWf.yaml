@@ -39,7 +39,7 @@ operations:
     name: "transform_2"
     path: "com.testing.operations.testWfOperations.JsonTransformFilter.transform"
     inputs:
-      sourceJson: "poc:transformed"
+      sourceJson: "oc:1:api_result.getBody()"
     next: 3
   - id: 3
     name: "give result back"

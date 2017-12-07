@@ -1,5 +1,6 @@
 package com.testing.workflow;
 
+import com.testing.commons.Utils;
 import com.testing.config.CacheLibraryConfig;
 import com.testing.models.CallableObject;
 import com.testing.services.operations.OperationFactory;
@@ -16,12 +17,17 @@ import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Scope;
+import org.springframework.expression.ExpressionParser;
+import org.springframework.expression.spel.standard.SpelExpressionParser;
+import org.springframework.expression.spel.support.StandardEvaluationContext;
 import org.springframework.stereotype.Service;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 @Scope("prototype")
@@ -181,24 +187,75 @@ public class WorkflowRunner {
         Object parameter = strParameter;
         if (strParameter.contains("wc:")) {
             String scopeAttributeName = strParameter.substring(strParameter.indexOf("wc:") + 3);
-            parameter = workflowContext.getAttribute(scopeAttributeName);
+            if ( scopeAttributeName.contains("\\.") ) {
+                parameter = workflowContext.getAttribute(Utils.extractFirstKey(scopeAttributeName, "\\."));
+                parameter = extractParameterValue(parameter, scopeAttributeName.substring(scopeAttributeName.indexOf('.') + 1 ));
+            } else {
+                parameter = workflowContext.getAttribute(scopeAttributeName);
+            }
         } else if (strParameter.contains("poc:")) {
             if (currOperation == 1) {
                 throw new InvalidMethodArgumentException(String.format("Cannot extract operand %s for first method invocation."
                         , strParameter));
             }
-            String scopeAttributeName = strParameter.substring(strParameter.indexOf("poc:") + 4);
             List<OperationContext> operationContexts = workflowContext.getOperationContexts();
             Optional<OperationContext> previousOperationContextOptional = operationContexts.stream().filter(oc
                     -> oc.getOperation().getId() == previousOperation).findAny();
             if (previousOperationContextOptional.isPresent()) {
+                String scopeAttributeName = strParameter.substring(strParameter.indexOf("poc:") + 4);
                 OperationContext operationContext = previousOperationContextOptional.get();
-                parameter = operationContext.getAttribute(scopeAttributeName);
+                if ( scopeAttributeName.contains("\\.") ) {
+                    parameter = operationContext.getAttribute(Utils.extractFirstKey(scopeAttributeName, "\\."));
+                    parameter = extractParameterValue(parameter, scopeAttributeName.substring(scopeAttributeName.indexOf('.') + 1 ));
+                } else {
+                    parameter = operationContext.getAttribute(scopeAttributeName);
+                }
             } else {
                 throw new InvalidMethodArgumentException(String.format("Could not find previous operation %s", previousOperation));
             }
+        } else if (strParameter.contains("oc:")) {
+            Pattern pattern = Pattern.compile("oc:(.*):.*");
+            Matcher matcher = pattern.matcher(strParameter);
+            if ( matcher.find() ) {
+                double operationId = Double.valueOf(matcher.group(1));
+                List<OperationContext> operationContexts = workflowContext.getOperationContexts();
+                Optional<OperationContext> operationContext = operationContexts.stream().filter(oc
+                        -> oc.getOperation().getId() == operationId).findAny();
+                if ( operationContext.isPresent() ) {
+                    OperationContext oldOperationContext = operationContext.get();
+                    String scopeAttributeName = strParameter.substring(strParameter.indexOf("oc:") + 3);
+                    if ( scopeAttributeName.contains("\\.") ) {
+                        parameter = oldOperationContext.getAttribute(Utils.extractFirstKey(scopeAttributeName, "\\."));
+                        parameter = extractParameterValue(parameter, scopeAttributeName.substring(scopeAttributeName.indexOf('.') + 1 ));
+                    } else {
+                        parameter = oldOperationContext.getAttribute(scopeAttributeName);
+                    }
+                }
+            }
         }
         return parameter;
+    }
+
+    private Object extractParameterValue(Object parameter, String key) {
+        if ( parameter instanceof Map ) {
+            if ( key.contains(".") ) {
+                String currKey = Utils.extractFirstKey(key, "\\.");
+                return extractParameterValue(((Map) parameter).get(currKey), key.substring(key.indexOf('.') + 1));
+            } else {
+                return ((Map) parameter).get(key);
+            }
+        } else {
+            ExpressionParser parser = new SpelExpressionParser();
+            StandardEvaluationContext simpleContext = new StandardEvaluationContext(parameter);
+            if ( key.contains(".") ) {
+                String currKey = Utils.extractFirstKey(key, "\\.");
+                Object value = parser.parseExpression(currKey).getValue(simpleContext);
+                return extractParameterValue(value, key.substring(key.indexOf('.') + 1));
+            } else {
+                return parser.parseExpression(key).getValue(simpleContext);
+            }
+            
+        }
     }
 
     public WorkflowContext getWorkflowContext() {
