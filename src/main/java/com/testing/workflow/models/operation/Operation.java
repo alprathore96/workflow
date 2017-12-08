@@ -10,10 +10,12 @@ public class Operation {
     private double next;
     private Double errorNext;
     private Map<String, Object> inputs;
+    private boolean param;
 
     public Operation() {
         this.id = -1;
         inputs = new LinkedHashMap<>();
+        param = false;
     }
 
     public double getId() {
@@ -66,4 +68,11 @@ public class Operation {
         this.errorNext = errorNext;
     }
 
+    public boolean isParam() {
+        return param;
+    }
+
+    public void setParam(boolean param) {
+        this.param = param;
+    }
 }

@@ -9,7 +9,6 @@ import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.PostConstruct;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -38,7 +37,7 @@ public class MappingFactory {
     }
 
 
-    @PostConstruct
+//    @PostConstruct
     public void initialize() {
         if ( !isInitialized ) {
             synchronized (MappingFactory.class) {

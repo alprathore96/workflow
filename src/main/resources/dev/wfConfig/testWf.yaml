@@ -18,7 +18,7 @@ operations:
       headers:
         accept: "application/json"
       payload: "{hotelId:2}"
-      params:
+      parameters:
         dbId: 1
         query: "${query}"
         scope: "wc:hotelId"
@@ -52,7 +52,7 @@ operations:
       headers:
         accept: "application/json"
       payload: "{hotelId:3}"
-      params:
+      parameters:
         dbId: 1
         query: "select * from test2"
     next: 4

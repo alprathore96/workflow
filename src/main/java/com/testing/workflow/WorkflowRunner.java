@@ -25,7 +25,10 @@ import org.springframework.stereotype.Service;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -163,8 +166,9 @@ public class WorkflowRunner {
             NotNull[] notNulls = methodParameter.getAnnotationsByType(NotNull.class);
             if ( notNulls != null ) {
                 if ( parameter == null ) {
-                    throw new InvalidMethodArgumentException(String.format("Null found for non-null argument %s for method %s"
-                            , methodParameter.getName(), method.getName()));
+                    return;
+//                    throw new InvalidMethodArgumentException(String.format("Null found for non-null argument %s for method %s"
+//                            , methodParameter.getName(), method.getName()));
                 }
             }
         }
@@ -187,8 +191,8 @@ public class WorkflowRunner {
         Object parameter = strParameter;
         if (strParameter.contains("wc:")) {
             String scopeAttributeName = strParameter.substring(strParameter.indexOf("wc:") + 3);
-            if ( scopeAttributeName.contains("\\.") ) {
-                parameter = workflowContext.getAttribute(Utils.extractFirstKey(scopeAttributeName, "\\."));
+            if ( scopeAttributeName.contains(".") ) {
+                parameter = workflowContext.getAttribute(Utils.extractFirstKey(scopeAttributeName, "."));
                 parameter = extractParameterValue(parameter, scopeAttributeName.substring(scopeAttributeName.indexOf('.') + 1 ));
             } else {
                 parameter = workflowContext.getAttribute(scopeAttributeName);
@@ -204,8 +208,8 @@ public class WorkflowRunner {
             if (previousOperationContextOptional.isPresent()) {
                 String scopeAttributeName = strParameter.substring(strParameter.indexOf("poc:") + 4);
                 OperationContext operationContext = previousOperationContextOptional.get();
-                if ( scopeAttributeName.contains("\\.") ) {
-                    parameter = operationContext.getAttribute(Utils.extractFirstKey(scopeAttributeName, "\\."));
+                if ( scopeAttributeName.contains(".") ) {
+                    parameter = operationContext.getAttribute(Utils.extractFirstKey(scopeAttributeName, "."));
                     parameter = extractParameterValue(parameter, scopeAttributeName.substring(scopeAttributeName.indexOf('.') + 1 ));
                 } else {
                     parameter = operationContext.getAttribute(scopeAttributeName);
@@ -214,7 +218,7 @@ public class WorkflowRunner {
                 throw new InvalidMethodArgumentException(String.format("Could not find previous operation %s", previousOperation));
             }
         } else if (strParameter.contains("oc:")) {
-            Pattern pattern = Pattern.compile("oc:(.*):.*");
+            Pattern pattern = Pattern.compile("oc:(.*):(.*)");
             Matcher matcher = pattern.matcher(strParameter);
             if ( matcher.find() ) {
                 double operationId = Double.valueOf(matcher.group(1));
@@ -223,9 +227,9 @@ public class WorkflowRunner {
                         -> oc.getOperation().getId() == operationId).findAny();
                 if ( operationContext.isPresent() ) {
                     OperationContext oldOperationContext = operationContext.get();
-                    String scopeAttributeName = strParameter.substring(strParameter.indexOf("oc:") + 3);
-                    if ( scopeAttributeName.contains("\\.") ) {
-                        parameter = oldOperationContext.getAttribute(Utils.extractFirstKey(scopeAttributeName, "\\."));
+                    String scopeAttributeName = matcher.group(2);
+                    if ( scopeAttributeName.contains(".") ) {
+                        parameter = oldOperationContext.getAttribute(Utils.extractFirstKey(scopeAttributeName, "."));
                         parameter = extractParameterValue(parameter, scopeAttributeName.substring(scopeAttributeName.indexOf('.') + 1 ));
                     } else {
                         parameter = oldOperationContext.getAttribute(scopeAttributeName);
@@ -239,7 +243,7 @@ public class WorkflowRunner {
     private Object extractParameterValue(Object parameter, String key) {
         if ( parameter instanceof Map ) {
             if ( key.contains(".") ) {
-                String currKey = Utils.extractFirstKey(key, "\\.");
+                String currKey = Utils.extractFirstKey(key, ".");
                 return extractParameterValue(((Map) parameter).get(currKey), key.substring(key.indexOf('.') + 1));
             } else {
                 return ((Map) parameter).get(key);
@@ -248,7 +252,7 @@ public class WorkflowRunner {
             ExpressionParser parser = new SpelExpressionParser();
             StandardEvaluationContext simpleContext = new StandardEvaluationContext(parameter);
             if ( key.contains(".") ) {
-                String currKey = Utils.extractFirstKey(key, "\\.");
+                String currKey = Utils.extractFirstKey(key, ".");
                 Object value = parser.parseExpression(currKey).getValue(simpleContext);
                 return extractParameterValue(value, key.substring(key.indexOf('.') + 1));
             } else {

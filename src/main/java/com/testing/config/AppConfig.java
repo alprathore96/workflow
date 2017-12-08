@@ -16,6 +16,6 @@ public class AppConfig {
 //        SimpleCacheManager cacheManager = new SimpleCacheManager();
 //        cacheManager.setCaches(Arrays.asList(new ConcurrentMapCache("classData")));
 //        return cacheManager;
-        return new ConcurrentMapCacheManager("classData");
+        return new ConcurrentMapCacheManager("classData", "methodFromClass");
     }
 }
