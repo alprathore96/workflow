@@ -1,5 +1,6 @@
 package com.testing.services.operations;
 
+import com.testing.models.TestClass;
 import com.testing.services.converters.HttpMethodConverter;
 import com.testing.workflow.WorkflowOperation;
 import com.testing.workflow.context.WorkflowContext;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
@@ -22,7 +24,6 @@ import java.util.Objects;
 public class ApiOperation extends WorkflowOperation {
 
     private static final Logger LOGGER = Logger.getLogger(ApiOperation.class);
-    private WorkflowContext workflowContext;
 
     public ResponseEntity call(@NotNull String url, @NotNull String method, Map<String, String> queryParams, Map<String, String> headers
             , String payload, Map<String, Object> parameters) {
@@ -34,6 +35,30 @@ public class ApiOperation extends WorkflowOperation {
 
             ResponseEntity<String> responseEntity = restTemplate.exchange(url, HttpMethodConverter.convert(method), entity, String.class);
             this.setOperationAttribute("api_result", responseEntity);
+
+            TestClass testClass1 = new TestClass();
+            testClass1.setX(10);
+            testClass1.setY("ten");
+            Map<String, Map<String, TestClass>> map = new HashMap<>();
+            TestClass testClass2 = new TestClass();
+            testClass2.setX(20);
+            testClass2.setY("twenty");
+            Map<String, Map<String, TestClass>> map2 = new HashMap<>();
+            TestClass testClass3 = new TestClass();
+            testClass3.setX(30);
+            testClass3.setY("thirty");
+            Map<String, TestClass> inM1 = new HashMap<>();
+            inM1.put("inm1", testClass2);
+            map.put("m1", inM1);
+            testClass1.setMap(map);
+
+            Map<String, TestClass> inm2 = new HashMap<>();
+            inm2.put("inm2", testClass3);
+            map2.put("m2", inm2);
+            testClass2.setMap(map2);
+
+            this.setOperationAttribute("mapped", testClass1);
+
             return responseEntity;
         } catch (Exception e) {
             e.printStackTrace();

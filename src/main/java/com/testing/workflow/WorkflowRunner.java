@@ -25,10 +25,7 @@ import org.springframework.stereotype.Service;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -92,20 +89,26 @@ public class WorkflowRunner {
                         throw new InvalidOperationPathException(String.format("Could not load path: %s", path));
                     }
                 }
-                if ( bean != null && method != null ) {
+                if (bean != null && method != null) {
                     injectWorkflowContext(bean, workflowContext);
                     try {
                         validateParameters(method, parameters);
-                        Object result = method.invoke(bean, parameters);
+                        Object result;
+                        if (operation.isParam()) {
+                            result = method.invoke(bean, parameters);
+                        } else {
+                            Map<String, Object> parameterMap = makeParameterMap(operation, parameters);
+                            result = ((WorkflowOperation) bean).operate(parameterMap);
+                        }
                         operationContext.setAttribute("result", result);
                         workflowContext.setNextOperation(operation.getNext());
                     } catch (Exception e) {
                         LOGGER.warn(String.format("Failed execution of operation %s for workflow %s during request " +
-                                "%s due to exception: ", operation.getId(), workflowContext.getWorkflow().getId()
-                        , workflowContext.getAttribute("request_id")), e);
+                                        "%s due to exception: ", operation.getId(), workflowContext.getWorkflow().getId()
+                                , workflowContext.getAttribute("request_id")), e);
                         operationContext.setState(State.FAILED);
                         operationContext.setException(e);
-                        if ( operation.getErrorNext() == null || operation.getErrorNext() == -1 ) {
+                        if (operation.getErrorNext() == null || operation.getErrorNext() == -1) {
                             throw new WorkflowExecutionException(e.getLocalizedMessage());
                         }
                         workflowContext.setNextOperation(operation.getErrorNext());
@@ -118,8 +121,18 @@ public class WorkflowRunner {
         }
     }
 
+    private static Map<String, Object> makeParameterMap(Operation operation, Object[] parameters) {
+        Map<String, Object> inputs = operation.getInputs();
+        Map<String, Object> result = new HashMap<>();
+        int i = 0;
+        for (Map.Entry<String, Object> entry : inputs.entrySet()) {
+            result.put(entry.getKey(), parameters[i++]);
+        }
+        return result;
+    }
+
     public Object getClassBean(Class clazz) throws IllegalAccessException, InstantiationException {
-        if ( clazz == null ) {
+        if (clazz == null) {
             return null;
         }
         try {
@@ -130,7 +143,7 @@ public class WorkflowRunner {
     }
 
     private void injectWorkflowContext(Object object, WorkflowContext workflowContext) throws IllegalAccessException, InstantiationException {
-        if ( WorkflowAware.class.isAssignableFrom(object.getClass()) ) {
+        if (WorkflowAware.class.isAssignableFrom(object.getClass())) {
             WorkflowAware workflowAware = (WorkflowAware) object;
             workflowAware.setWorkflowContext(workflowContext);
         }
@@ -151,21 +164,21 @@ public class WorkflowRunner {
     }
 
     private void validateParameters(Method method, Object[] parameters) throws InvalidMethodArgumentException {
-        if ( method == null || parameters == null ) {
+        if (method == null || parameters == null) {
             LOGGER.warn("Could not validate parameters because of null parameters.");
             return;
         }
         Parameter[] methodParameters = method.getParameters();
-        if ( parameters.length != methodParameters.length ) {
+        if (parameters.length != methodParameters.length) {
             LOGGER.warn("Could not validate parameters due to wrong length.");
             return;
         }
-        for ( int i = 0; i < parameters.length; i++ ) {
+        for (int i = 0; i < parameters.length; i++) {
             Object parameter = parameters[i];
             Parameter methodParameter = methodParameters[i];
             NotNull[] notNulls = methodParameter.getAnnotationsByType(NotNull.class);
-            if ( notNulls != null ) {
-                if ( parameter == null ) {
+            if (notNulls != null) {
+                if (parameter == null) {
                     return;
 //                    throw new InvalidMethodArgumentException(String.format("Null found for non-null argument %s for method %s"
 //                            , methodParameter.getName(), method.getName()));
@@ -191,9 +204,10 @@ public class WorkflowRunner {
         Object parameter = strParameter;
         if (strParameter.contains("wc:")) {
             String scopeAttributeName = strParameter.substring(strParameter.indexOf("wc:") + 3);
-            if ( scopeAttributeName.contains(".") ) {
+            if (scopeAttributeName.contains(".")) {
                 parameter = workflowContext.getAttribute(Utils.extractFirstKey(scopeAttributeName, "."));
-                parameter = extractParameterValue(parameter, scopeAttributeName.substring(scopeAttributeName.indexOf('.') + 1 ));
+                parameter = extractParameterValue(parameter, scopeAttributeName.substring(scopeAttributeName
+                        .indexOf('.') + 1), currOperation, previousOperation);
             } else {
                 parameter = workflowContext.getAttribute(scopeAttributeName);
             }
@@ -208,9 +222,10 @@ public class WorkflowRunner {
             if (previousOperationContextOptional.isPresent()) {
                 String scopeAttributeName = strParameter.substring(strParameter.indexOf("poc:") + 4);
                 OperationContext operationContext = previousOperationContextOptional.get();
-                if ( scopeAttributeName.contains(".") ) {
+                if (scopeAttributeName.contains(".")) {
                     parameter = operationContext.getAttribute(Utils.extractFirstKey(scopeAttributeName, "."));
-                    parameter = extractParameterValue(parameter, scopeAttributeName.substring(scopeAttributeName.indexOf('.') + 1 ));
+                    parameter = extractParameterValue(parameter, scopeAttributeName.substring(scopeAttributeName
+                            .indexOf('.') + 1), currOperation, previousOperation);
                 } else {
                     parameter = operationContext.getAttribute(scopeAttributeName);
                 }
@@ -220,17 +235,18 @@ public class WorkflowRunner {
         } else if (strParameter.contains("oc:")) {
             Pattern pattern = Pattern.compile("oc:(.*):(.*)");
             Matcher matcher = pattern.matcher(strParameter);
-            if ( matcher.find() ) {
+            if (matcher.find()) {
                 double operationId = Double.valueOf(matcher.group(1));
                 List<OperationContext> operationContexts = workflowContext.getOperationContexts();
                 Optional<OperationContext> operationContext = operationContexts.stream().filter(oc
                         -> oc.getOperation().getId() == operationId).findAny();
-                if ( operationContext.isPresent() ) {
+                if (operationContext.isPresent()) {
                     OperationContext oldOperationContext = operationContext.get();
                     String scopeAttributeName = matcher.group(2);
-                    if ( scopeAttributeName.contains(".") ) {
+                    if (scopeAttributeName.contains(".")) {
                         parameter = oldOperationContext.getAttribute(Utils.extractFirstKey(scopeAttributeName, "."));
-                        parameter = extractParameterValue(parameter, scopeAttributeName.substring(scopeAttributeName.indexOf('.') + 1 ));
+                        parameter = extractParameterValue(parameter, scopeAttributeName.substring(scopeAttributeName
+                                .indexOf('.') + 1), currOperation, previousOperation);
                     } else {
                         parameter = oldOperationContext.getAttribute(scopeAttributeName);
                     }
@@ -240,26 +256,52 @@ public class WorkflowRunner {
         return parameter;
     }
 
-    private Object extractParameterValue(Object parameter, String key) {
-        if ( parameter instanceof Map ) {
-            if ( key.contains(".") ) {
+    private Object extractParameterValue(Object parameter, String key, double currOperation
+            , double previousOperation) throws InvalidMethodArgumentException {
+        if (parameter instanceof Map) {
+            if (key.contains(".")) {
                 String currKey = Utils.extractFirstKey(key, ".");
-                return extractParameterValue(((Map) parameter).get(currKey), key.substring(key.indexOf('.') + 1));
+                return extractParameterValue(((Map) parameter).get(currKey), key.substring(key.indexOf('.') + 1)
+                        , currOperation, previousOperation);
             } else {
                 return ((Map) parameter).get(key);
             }
         } else {
             ExpressionParser parser = new SpelExpressionParser();
             StandardEvaluationContext simpleContext = new StandardEvaluationContext(parameter);
-            if ( key.contains(".") ) {
+            if (key.contains(".")) {
                 String currKey = Utils.extractFirstKey(key, ".");
+                currKey = createSpelExpression(currKey, simpleContext, currOperation, previousOperation);
                 Object value = parser.parseExpression(currKey).getValue(simpleContext);
-                return extractParameterValue(value, key.substring(key.indexOf('.') + 1));
+                return extractParameterValue(value, key.substring(key.indexOf('.') + 1), currOperation, previousOperation);
             } else {
-                return parser.parseExpression(key).getValue(simpleContext);
+                return parser.parseExpression(createSpelExpression(key, simpleContext, currOperation, previousOperation)).getValue(simpleContext);
             }
-            
         }
+    }
+
+    private String createSpelExpression(String key, StandardEvaluationContext simpleContext, double currOperation, double previousOperation) throws InvalidMethodArgumentException {
+        Pattern pattern = Pattern.compile("(.*)\\((.+)\\)");
+        Matcher matcher = pattern.matcher(key);
+        if (matcher.find()) {
+            String parameterString = matcher.group(2);
+            String[] parameters = parameterString.split(",");
+            int i = 0;
+            String finalParameterString = "";
+            StringBuilder stringBuilder = new StringBuilder(finalParameterString);
+            for (String singleParameter : parameters) {
+                if (!singleParameter.startsWith("'")) {
+                    simpleContext.setVariable("arg" + i, enrichScopedParameters(workflowContext, singleParameter
+                            , currOperation, previousOperation));
+                } else {
+                    singleParameter = singleParameter.replaceAll("\'", "");
+                    simpleContext.setVariable("arg" + i, singleParameter);
+                }
+                stringBuilder.append("#arg").append(i).append(",");
+            }
+            return matcher.group(1) + "(" + stringBuilder.toString().substring(0, stringBuilder.toString().length() - 1) + ")";
+        }
+        return key;
     }
 
     public WorkflowContext getWorkflowContext() {

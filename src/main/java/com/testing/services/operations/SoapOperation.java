@@ -16,7 +16,7 @@ import java.io.InputStream;
 
 @Service
 @Scope("prototype")
-public class SoapOperation extends WorkflowOperation {
+public class SoapOperation  {
 
     private static final Logger LOGGER = Logger.getLogger(SoapOperation.class);
 
@@ -32,7 +32,7 @@ public class SoapOperation extends WorkflowOperation {
 
         // Print SOAP Response
         LOGGER.info("Response SOAP Message : " + soapResponse.toString());
-        this.setOperationAttribute("soap_result", soapResponse);
+//        this.setOperationAttribute("soap_result", soapResponse);
         return soapResponse.toString();
     }
 

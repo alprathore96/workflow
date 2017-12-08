@@ -2,10 +2,14 @@ package com.testing.operations.testWfOperations;
 
 import com.testing.services.JsonTransformer;
 import com.testing.workflow.WorkflowOperation;
+import com.testing.workflow.exceptions.InvalidMethodArgumentException;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Service;
+
+import java.util.Map;
+import java.util.Objects;
 
 @Service
 @Scope("prototype")
@@ -29,4 +33,12 @@ public class JsonTransformFilter extends WorkflowOperation {
         return null;
     }
 
+    @Override
+    public Object operate(Map params) throws InvalidMethodArgumentException {
+        Object sourceJson = params.get("sourceJson");
+        if (Objects.isNull(sourceJson)) {
+            throw new InvalidMethodArgumentException("Source json cannot be null.");
+        }
+        return transform(sourceJson.toString());
+    }
 }

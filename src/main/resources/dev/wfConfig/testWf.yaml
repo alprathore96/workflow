@@ -2,9 +2,11 @@ id: 1
 name: "testWorkFlow"
 constants:
   - key: "externalUrl"
-    value: "http://localhost:8083/wf/hotel"
+    value: "http://localhost:8080/hotel"
   - key: "query"
     value: "select * from test"
+  - key: "someValue"
+    value: "123"
 operations:
   - id: 1
     name: "call External Url"
@@ -39,13 +41,13 @@ operations:
     name: "transform_2"
     path: "com.testing.operations.testWfOperations.JsonTransformFilter.transform"
     inputs:
-      sourceJson: "oc:1:api_result.getBody()"
+      sourceJson: "oc:1:mapped.getMap().m1.inm1.getStr('my message').concat('-').concat('${someValue}')"
     next: 3
   - id: 3
     name: "give result back"
     path: "p:api"
     inputs:
-      url: "http://localhost:8083/wf/hotel/put"
+      url: "http://localhost:8080/hotel/put"
       method: "POST"
       queryParams:
         hotelId: 3

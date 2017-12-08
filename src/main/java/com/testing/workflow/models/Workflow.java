@@ -34,16 +34,15 @@ public class Workflow {
                 enrichMap((Map)value);
             } else if ( value instanceof String) {
                 String strValue = (String) value;
-                Pattern pattern = Pattern.compile("\\$\\{(.*)}");
+                Pattern pattern = Pattern.compile("(.*)\\$\\{(.*)}(.*)");
                 Matcher matcher = pattern.matcher(strValue);
                 if ( matcher.find() ) {
                     try {
-                        String constantExpression = matcher.group(1);
-                        System.out.println(constantExpression);
+                        String constantExpression = matcher.group(2);
                         Optional<Constant> constantOptional = constants.stream().filter(constant -> constant.getKey() != null
                                 && constant.getKey()
                                 .equalsIgnoreCase(constantExpression)).findAny();
-                        constantOptional.ifPresent(constant -> entry.setValue(constant.value));
+                        constantOptional.ifPresent(constant -> entry.setValue((matcher.group(1) + constant.value + matcher.group(3))));
                     } catch (Exception e) {
                         LOGGER.warn(String.format("Could not match string %s for constant pattern.", strValue));
                     }

@@ -6,7 +6,7 @@ import com.testing.workflow.WorkflowOperation;
 import javax.xml.stream.XMLStreamException;
 import java.io.IOException;
 
-public class XmlToJsonOperation extends WorkflowOperation {
+public class XmlToJsonOperation  {
 
     public String convert(String xml) {
         try {
