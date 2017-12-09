@@ -1,5 +1,6 @@
 package com.testing.config;
 
+import com.testing.appConfig.MasterDatabaseConfig;
 import com.testing.services.operations.OperationFactory;
 import com.testing.workflow.manager.WorkflowFactory;
 import org.apache.log4j.Logger;
@@ -13,6 +14,8 @@ public class StartupListener {
     private static final Logger LOGGER = Logger.getLogger(StartupListener.class);
 
     @Autowired
+    MasterDatabaseConfig masterDatabaseConfig;
+    @Autowired
     WorkflowFactory workflowFactory;
     @Autowired
     OperationFactory operationFactory;
@@ -20,6 +23,7 @@ public class StartupListener {
     @EventListener
     public void onApplicationEvent(ContextRefreshedEvent contextRefreshedEvent) {
         LOGGER.info("Initializing app...");
+
         workflowFactory.init();
         operationFactory.init();
     }

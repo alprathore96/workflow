@@ -2,8 +2,8 @@ package com.testing.models.databaseModels;
 
 public class MappingEntity {
     private int id;
-    private String workflowId;
     private String mapping;
+    private String group;
 
     public int getId() {
         return id;
@@ -13,12 +13,12 @@ public class MappingEntity {
         this.id = id;
     }
 
-    public String getWorkflowId() {
-        return workflowId;
+    public String getGroup() {
+        return group;
     }
 
-    public void setWorkflowId(String workflowId) {
-        this.workflowId = workflowId;
+    public void setGroup(String group) {
+        this.group = group;
     }
 
     public String getMapping() {

@@ -41,7 +41,7 @@ operations:
     name: "transform_2"
     path: "com.testing.operations.testWfOperations.JsonTransformFilter.transform"
     inputs:
-      sourceJson: "oc:1:mapped.getMap().m1.inm1.getStr('my message').concat('-').concat('${someValue}')"
+      sourceJson: "oc:1:mapped.getMap().m1.inm1.getStr(oc:1:api_result.getBody().toString()).concat('-').concat('${someValue}')"
     next: 3
   - id: 3
     name: "give result back"

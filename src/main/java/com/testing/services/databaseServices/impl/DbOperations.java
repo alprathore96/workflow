@@ -1,6 +1,6 @@
 package com.testing.services.databaseServices.impl;
 
-import com.testing.appConfig.DatabaseConfig;
+import com.testing.appConfig.MasterDatabaseConfig;
 import com.testing.appConfig.DatabasePoolConfig;
 import com.testing.services.databaseServices.DbInsert;
 import com.testing.services.databaseServices.DbQuery;
@@ -19,11 +19,6 @@ import java.util.List;
 public class DbOperations implements DbQuery, DbInsert, DbUpdate {
 
     private static final Logger LOGGER = Logger.getLogger(DbOperations.class);
-
-    @Autowired
-    DatabaseConfig databaseConfig;
-    @Autowired
-    DatabasePoolConfig databasePoolConfig;
 
     @Override
     public List<Integer> insert(PreparedStatement preparedStatement) throws SQLException {

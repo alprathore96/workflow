@@ -6,7 +6,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 @PropertySource("classpath:application.properties")
-public class DatabaseConfig {
+public class MasterDatabaseConfig {
 
     @Value("${db.url}")
     private String url;

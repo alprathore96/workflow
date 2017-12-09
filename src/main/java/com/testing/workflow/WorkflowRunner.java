@@ -4,6 +4,7 @@ import com.testing.commons.Utils;
 import com.testing.config.CacheLibraryConfig;
 import com.testing.models.CallableObject;
 import com.testing.services.operations.OperationFactory;
+import com.testing.workflow.context.Context;
 import com.testing.workflow.context.OperationContext;
 import com.testing.workflow.context.WorkflowContext;
 import com.testing.workflow.exceptions.InvalidMethodArgumentException;
@@ -204,13 +205,7 @@ public class WorkflowRunner {
         Object parameter = strParameter;
         if (strParameter.contains("wc:")) {
             String scopeAttributeName = strParameter.substring(strParameter.indexOf("wc:") + 3);
-            if (scopeAttributeName.contains(".")) {
-                parameter = workflowContext.getAttribute(Utils.extractFirstKey(scopeAttributeName, "."));
-                parameter = extractParameterValue(parameter, scopeAttributeName.substring(scopeAttributeName
-                        .indexOf('.') + 1), currOperation, previousOperation);
-            } else {
-                parameter = workflowContext.getAttribute(scopeAttributeName);
-            }
+            parameter = enrichParameter(workflowContext, scopeAttributeName, currOperation, previousOperation);
         } else if (strParameter.contains("poc:")) {
             if (currOperation == 1) {
                 throw new InvalidMethodArgumentException(String.format("Cannot extract operand %s for first method invocation."
@@ -222,18 +217,12 @@ public class WorkflowRunner {
             if (previousOperationContextOptional.isPresent()) {
                 String scopeAttributeName = strParameter.substring(strParameter.indexOf("poc:") + 4);
                 OperationContext operationContext = previousOperationContextOptional.get();
-                if (scopeAttributeName.contains(".")) {
-                    parameter = operationContext.getAttribute(Utils.extractFirstKey(scopeAttributeName, "."));
-                    parameter = extractParameterValue(parameter, scopeAttributeName.substring(scopeAttributeName
-                            .indexOf('.') + 1), currOperation, previousOperation);
-                } else {
-                    parameter = operationContext.getAttribute(scopeAttributeName);
-                }
+                parameter = enrichParameter(operationContext, scopeAttributeName, currOperation, previousOperation);
             } else {
                 throw new InvalidMethodArgumentException(String.format("Could not find previous operation %s", previousOperation));
             }
         } else if (strParameter.contains("oc:")) {
-            Pattern pattern = Pattern.compile("oc:(.*):(.*)");
+            Pattern pattern = Pattern.compile("oc:([a-zA-Z0-9_]*):(.*)");
             Matcher matcher = pattern.matcher(strParameter);
             if (matcher.find()) {
                 double operationId = Double.valueOf(matcher.group(1));
@@ -243,15 +232,22 @@ public class WorkflowRunner {
                 if (operationContext.isPresent()) {
                     OperationContext oldOperationContext = operationContext.get();
                     String scopeAttributeName = matcher.group(2);
-                    if (scopeAttributeName.contains(".")) {
-                        parameter = oldOperationContext.getAttribute(Utils.extractFirstKey(scopeAttributeName, "."));
-                        parameter = extractParameterValue(parameter, scopeAttributeName.substring(scopeAttributeName
-                                .indexOf('.') + 1), currOperation, previousOperation);
-                    } else {
-                        parameter = oldOperationContext.getAttribute(scopeAttributeName);
-                    }
+                    parameter = enrichParameter(oldOperationContext, scopeAttributeName, currOperation, previousOperation);
                 }
             }
+        }
+        return parameter;
+    }
+
+    private Object enrichParameter(Context context, String scopeAttributeName, double currOperation, double previousOperation) throws InvalidMethodArgumentException {
+        Object parameter;
+        if (scopeAttributeName.contains(".")) {
+            Utils.SubstringIndex substringIndex = Utils.extractFirstKeyFromExpression(scopeAttributeName);
+            parameter = context.getAttribute(substringIndex.getSubstring());
+            parameter = extractParameterValue(parameter, scopeAttributeName.substring(substringIndex.getIndex() + 1)
+                    , currOperation, previousOperation);
+        } else {
+            parameter = context.getAttribute(scopeAttributeName);
         }
         return parameter;
     }
@@ -260,8 +256,8 @@ public class WorkflowRunner {
             , double previousOperation) throws InvalidMethodArgumentException {
         if (parameter instanceof Map) {
             if (key.contains(".")) {
-                String currKey = Utils.extractFirstKey(key, ".");
-                return extractParameterValue(((Map) parameter).get(currKey), key.substring(key.indexOf('.') + 1)
+                Utils.SubstringIndex substringIndex = Utils.extractFirstKeyFromExpression(key);
+                return extractParameterValue(((Map) parameter).get(substringIndex.getSubstring()), key.substring(substringIndex.getIndex() + 1)
                         , currOperation, previousOperation);
             } else {
                 return ((Map) parameter).get(key);
@@ -270,10 +266,10 @@ public class WorkflowRunner {
             ExpressionParser parser = new SpelExpressionParser();
             StandardEvaluationContext simpleContext = new StandardEvaluationContext(parameter);
             if (key.contains(".")) {
-                String currKey = Utils.extractFirstKey(key, ".");
-                currKey = createSpelExpression(currKey, simpleContext, currOperation, previousOperation);
+                Utils.SubstringIndex substringIndex = Utils.extractFirstKeyFromExpression(key);
+                String currKey = createSpelExpression(substringIndex.getSubstring(), simpleContext, currOperation, previousOperation);
                 Object value = parser.parseExpression(currKey).getValue(simpleContext);
-                return extractParameterValue(value, key.substring(key.indexOf('.') + 1), currOperation, previousOperation);
+                return extractParameterValue(value, key.substring(substringIndex.getIndex() + 1), currOperation, previousOperation);
             } else {
                 return parser.parseExpression(createSpelExpression(key, simpleContext, currOperation, previousOperation)).getValue(simpleContext);
             }
@@ -281,7 +277,7 @@ public class WorkflowRunner {
     }
 
     private String createSpelExpression(String key, StandardEvaluationContext simpleContext, double currOperation, double previousOperation) throws InvalidMethodArgumentException {
-        Pattern pattern = Pattern.compile("(.*)\\((.+)\\)");
+        Pattern pattern = Pattern.compile("([a-zA-Z0-9_]*)\\((.+)\\)");
         Matcher matcher = pattern.matcher(key);
         if (matcher.find()) {
             String parameterString = matcher.group(2);
