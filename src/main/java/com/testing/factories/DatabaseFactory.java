@@ -1,6 +1,7 @@
 package com.testing.factories;
 
 import com.testing.appConfig.MasterDatabaseConfig;
+import com.testing.appConfig.TablesConfig;
 import com.testing.models.databaseModels.DatabaseConfigEntity;
 import com.testing.services.databaseServices.impl.DbOperations;
 import com.zaxxer.hikari.HikariConfig;
@@ -25,6 +26,8 @@ public class DatabaseFactory {
     @Autowired
     private MasterDatabaseConfig masterDatabaseConfig;
     @Autowired
+    private TablesConfig tablesConfig;
+    @Autowired
     private DbOperations dbOperations;
 
     private Map<String, DataSource> namedDatasources;
@@ -39,7 +42,7 @@ public class DatabaseFactory {
         Class.forName("com.mysql.jdbc.Driver");
         Connection connection = DriverManager.getConnection(masterDatabaseConfig.getUrl(), masterDatabaseConfig.getUser()
                 , masterDatabaseConfig.getPassword());
-        PreparedStatement statement = connection.prepareStatement("SELECT * FROM database_config;");
+        PreparedStatement statement = connection.prepareStatement("SELECT * FROM " + tablesConfig.getDatabaseConfig());
         ResultSet resultSet = dbOperations.query(statement);
         List<DatabaseConfigEntity> databaseConfigEntities = resultSetToDatabaseEntities(resultSet);
         for ( DatabaseConfigEntity databaseConfigEntity : databaseConfigEntities ) {

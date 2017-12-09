@@ -1,7 +1,8 @@
 package com.testing.services.factories;
 
 import com.testing.appConfig.MasterDatabaseConfig;
-import com.testing.appConfig.MappingConfig;
+import com.testing.appConfig.TablesConfig;
+import com.testing.commons.Constants;
 import com.testing.factories.DatabaseFactory;
 import com.testing.models.databaseModels.MappingEntity;
 import com.testing.services.databaseServices.DbQuery;
@@ -28,28 +29,8 @@ public class MappingFactory {
     private DbQuery dbQuery;
     @Autowired
     private DatabaseFactory databaseFactory;
-    private Map<Integer, MappingEntity> idMappings;
-
-    @PostConstruct
-    public void initialize() {
-        if ( !isInitialized ) {
-            synchronized (MappingFactory.class) {
-                if ( !isInitialized ) {
-                    idMappings = new HashMap<>();
-                    try {
-                        Connection connection = databaseFactory.getConnection("workflow_data");
-                        PreparedStatement statement = connection.prepareStatement(String.format("select * from %s.%s;",
-                                mappingConfig.getDatabase(), mappingConfig.getTable()));
-                        ResultSet mappingResultSet = dbQuery.query(statement);
-                        List<MappingEntity> mappingEntities = resultSetToEntity(mappingResultSet);
-                        mappingEntities.forEach(mappingEntity -> idMappings.put(mappingEntity.getId(), mappingEntity));
-                    } catch (SQLException | ClassNotFoundException e) {
-                        e.printStackTrace();
-                    }
-                }
-            }
-        }
-    }
+    @Autowired
+    private TablesConfig tablesConfig;
 
     private List<MappingEntity> resultSetToEntity(ResultSet resultSet) throws SQLException {
         List<MappingEntity> mappingEntities = new ArrayList<>();
@@ -63,16 +44,13 @@ public class MappingFactory {
         return mappingEntities;
     }
 
-    public static List<MappingEntity> getMappingsForGroup(String group) {
-        return null;
-    }
-
-    public static String getMappingForId(int id) {
-        MappingEntity mappingEntity = idMappings.get(id);
-        if ( mappingEntity == null || mappingEntity.getMapping() == null ) {
-            throw new IllegalArgumentException(String.format("Could not find mapping for id %s.", id));
+    public List<String> getMappingsForGroup(String group) {
+        try {
+            Connection connection = databaseFactory.getConnection(Constants.WORKFLOW_DATABASE_NAME);
+            PreparedStatement preparedStatement = connection.prepareStatement("");
+        } catch (SQLException e) {
+            LOGGER.warn(String.format("Could not fetch mappings for group %s due to exception: ", group), e);
         }
-        return mappingEntity.getMapping();
     }
 
 }
